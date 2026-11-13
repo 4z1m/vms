@@ -35,7 +35,7 @@ TMP_RUN="$(mktemp -d)"
 trap 'rm -rf "$TMP_RUN"' EXIT
 
 # ---------------------------------------------------------------------
-#  Animation primitives (all output to stderr)
+#  Animation primitives
 # ---------------------------------------------------------------------
 SPIN_PID=""
 SPIN_MSG=""
@@ -101,6 +101,16 @@ blink_text() {
     printf '\r%s%s%s\n' "${C_GRN}${C_BOLD}" "$text" "${C_RESET}" >&2
 }
 
+countdown_short() {
+    [[ "$ANIMATIONS" != true ]] && return
+    local n=$1 i
+    for ((i=n; i>0; i--)); do
+        printf '\r%s Booting in %ds...' "${C_YEL}◷${C_RESET}" "$i" >&2
+        sleep 1
+    done
+    printf '\r%s Booting now!   \n' "${C_GRN}✔${C_RESET}" >&2
+}
+
 # ---------------------------------------------------------------------
 #  UI helpers
 # ---------------------------------------------------------------------
@@ -109,7 +119,7 @@ safe_clear() {
 }
 
 hr() {
-    printf '%s\n' "${C_GREY}$(printf '─%.0s' $(seq 1 72))${C_RESET}"
+    printf '%s\n' "${C_GREY}$(printf '─%.0s' $(seq 1 72))${C_RESET}" >&2
 }
 
 print_status() {
@@ -156,28 +166,25 @@ press_enter() {
 # ---------------------------------------------------------------------
 banner() {
     printf '\n' >&2
-    printf '%s\n' "${C_CYN}${C_BOLD}  ╔══════════════════════════════════════════════════════════╗${C_RESET}" >&2
-    printf '%s\n' "${C_CYN}${C_BOLD}  ║                                                          ║${C_RESET}" >&2
-    printf '%s\n' "${C_CYN}${C_BOLD}  ║            I N V I S   C L O U D   ·   V M               ║${C_RESET}" >&2
-    printf '%s\n' "${C_CYN}${C_BOLD}  ║                                                          ║${C_RESET}" >&2
-    printf '%s\n' "${C_CYN}${C_BOLD}  ╚══════════════════════════════════════════════════════════╝${C_RESET}" >&2
-    printf '%s\n' "${C_GREY}                    powered by ${C_MAG}${C_BOLD}4z1m${C_RESET}" >&2
+    printf '%s\n' "${C_CYN}${C_BOLD}  ══════════════════════════════════════════════════════════${C_RESET}" >&2
+    printf '%s\n' "${C_CYN}${C_BOLD}   I N V I S   C L O U D   ·   V M   M A N A G E R${C_RESET}" >&2
+    printf '%s\n' "${C_GREY}              powered by ${C_MAG}${C_BOLD}4z1m${C_RESET}" >&2
+    printf '%s\n' "${C_CYN}${C_BOLD}  ══════════════════════════════════════════════════════════${C_RESET}" >&2
     printf '\n' >&2
 }
 
 header() {
     safe_clear
     banner
-    hr
-    printf '%s\n' "${C_GREY}  VM Directory: ${C_WHT}$VM_DIR${C_RESET}"
+    printf '%s\n' "${C_GREY}  VM Directory: ${C_WHT}$VM_DIR${C_RESET}" >&2
     if [[ -w /dev/kvm ]]; then
-        printf '%s\n' "${C_GREY}  Host KVM:     ${C_GRN}● available${C_RESET}"
+        printf '%s\n' "${C_GREY}  Host KVM:     ${C_GRN}● available${C_RESET}" >&2
     else
-        printf '%s\n' "${C_GREY}  Host KVM:     ${C_RED}○ unavailable${C_RESET}"
+        printf '%s\n' "${C_GREY}  Host KVM:     ${C_RED}○ unavailable${C_RESET}" >&2
     fi
-    printf '%s\n' "${C_GREY}  Date:         ${C_WHT}$(date '+%Y-%m-%d %H:%M:%S')${C_RESET}"
+    printf '%s\n' "${C_GREY}  Date:         ${C_WHT}$(date '+%Y-%m-%d %H:%M:%S')${C_RESET}" >&2
     hr
-    echo
+    echo >&2
 }
 
 # ---------------------------------------------------------------------
@@ -301,7 +308,6 @@ bytes_human() {
 
 ensure_base_image() {
     local base; base="$(base_image_path "$OS_TYPE")"
-
     if [[ -f "$base" ]]; then
         print_status INFO "Using cached base: $(basename "$base")"
         BASE_IMG="$base"
@@ -349,7 +355,7 @@ pick_vm() {
     PICKED_VM=""
     local vms=()
     while IFS= read -r line; do
-        vms+=("$line")
+        [[ -n "$line" ]] && vms+=("$line")
     done < <(get_vm_list)
     local n=${#vms[@]}
     if ((n == 0)); then
@@ -465,7 +471,6 @@ create_new_vm() {
         else print_status ERROR "Please answer y or n"; fi
     done
 
-    # KVM choice
     echo >&2
     print_status STEP "Acceleration mode"
     printf "  ${C_CYN}1${C_RESET}) KVM acceleration (fast)\n" >&2
@@ -556,11 +561,11 @@ start_vm() {
 
     header
     print_status STEP "Starting VM: $vm"
-    echo
-    printf "  ${C_GREY}%-12s${C_RESET} %s\n" "SSH:" "ssh -i $SSH_KEY -p $SSH_PORT $USERNAME@127.0.0.1"
-    printf "  ${C_GREY}%-12s${C_RESET} %s\n" "Password:" "$PASSWORD"
-    printf "  ${C_GREY}%-12s${C_RESET} %s MB / %s CPUs / %s\n" "Resources:" "$MEMORY" "$CPUS" "$DISK_SIZE"
-    echo
+    echo >&2
+    printf "  ${C_GREY}%-12s${C_RESET} %s\n" "SSH:" "ssh -i $SSH_KEY -p $SSH_PORT $USERNAME@127.0.0.1" >&2
+    printf "  ${C_GREY}%-12s${C_RESET} %s\n" "Password:" "$PASSWORD" >&2
+    printf "  ${C_GREY}%-12s${C_RESET} %s MB / %s CPUs / %s\n" "Resources:" "$MEMORY" "$CPUS" "$DISK_SIZE" >&2
+    echo >&2
 
     if [[ ! -f "$IMG_FILE" ]]; then
         print_status ERROR "Image missing: $IMG_FILE"
@@ -630,16 +635,6 @@ start_vm() {
     return 0
 }
 
-countdown_short() {
-    [[ "$ANIMATIONS" != true ]] && return
-    local n=$1 i
-    for ((i=n; i>0; i--)); do
-        printf '\r%s Booting in %ds...' "${C_YEL}◷${C_RESET}" "$i" >&2
-        sleep 1
-    done
-    printf '\r%s Booting now!   \n' "${C_GRN}✔${C_RESET}" >&2
-}
-
 # ---------------------------------------------------------------------
 #  Stop VM
 # ---------------------------------------------------------------------
@@ -678,7 +673,6 @@ delete_vm() {
     header
     print_status WARN "This will permanently delete '$vm'!"
     if confirm "Delete VM '$vm'?"; then
-        # Stop if running
         if is_vm_running "$IMG_FILE"; then
             pkill -f "qemu-system-x86_64.*$IMG_FILE" 2>/dev/null || true
             sleep 1
@@ -703,25 +697,25 @@ show_vm_info() {
     header
     print_status STEP "VM Info: $vm"
     hr
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "OS:"         "$OS_TYPE"
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Hostname:"   "$HOSTNAME"
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Username:"   "$USERNAME"
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Password:"   "$PASSWORD"
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "SSH Port:"   "$SSH_PORT"
-    printf "  ${C_GREY}%-14s${C_RESET} %s MB\n" "Memory:"  "$MEMORY"
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "CPUs:"       "$CPUS"
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Disk:"       "$DISK_SIZE"
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "GUI:"        "$GUI_MODE"
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "OS:"         "$OS_TYPE" >&2
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Hostname:"   "$HOSTNAME" >&2
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Username:"   "$USERNAME" >&2
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Password:"   "$PASSWORD" >&2
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "SSH Port:"   "$SSH_PORT" >&2
+    printf "  ${C_GREY}%-14s${C_RESET} %s MB\n" "Memory:"  "$MEMORY" >&2
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "CPUs:"       "$CPUS" >&2
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Disk:"       "$DISK_SIZE" >&2
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "GUI:"        "$GUI_MODE" >&2
     if [[ "$KVM" == "true" ]]; then
-        printf "  ${C_GREY}%-14s${C_RESET} ${C_GRN}KVM${C_RESET}\n" "Accel:"
+        printf "  ${C_GREY}%-14s${C_RESET} ${C_GRN}KVM${C_RESET}\n" "Accel:" >&2
     else
-        printf "  ${C_GREY}%-14s${C_RESET} ${C_YEL}Software${C_RESET}\n" "Accel:"
+        printf "  ${C_GREY}%-14s${C_RESET} ${C_YEL}Software${C_RESET}\n" "Accel:" >&2
     fi
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Forwards:"   "${PORT_FORWARDS:-none}"
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "SSH Key:"    "$SSH_KEY"
-    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Created:"    "$CREATED"
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Forwards:"   "${PORT_FORWARDS:-none}" >&2
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "SSH Key:"    "$SSH_KEY" >&2
+    printf "  ${C_GREY}%-14s${C_RESET} %s\n" "Created:"    "$CREATED" >&2
     hr
-    echo
+    echo >&2
     press_enter
     return 0
 }
@@ -735,23 +729,23 @@ edit_vm_config() {
     while true; do
         header
         print_status STEP "Edit VM: $vm"
-        echo
-        echo "  1) Hostname        $HOSTNAME"
-        echo "  2) Username        $USERNAME"
-        echo "  3) Password        ****"
-        echo "  4) SSH Port        $SSH_PORT"
-        echo "  5) GUI Mode        $GUI_MODE"
-        echo "  6) Port Forwards   ${PORT_FORWARDS:-none}"
-        echo "  7) Memory (MB)     $MEMORY"
-        echo "  8) CPU Count       $CPUS"
-        echo "  9) Disk Size       $DISK_SIZE"
+        echo >&2
+        printf "  1) Hostname        %s\n" "$HOSTNAME" >&2
+        printf "  2) Username        %s\n" "$USERNAME" >&2
+        printf "  3) Password        ****\n" >&2
+        printf "  4) SSH Port        %s\n" "$SSH_PORT" >&2
+        printf "  5) GUI Mode        %s\n" "$GUI_MODE" >&2
+        printf "  6) Port Forwards   %s\n" "${PORT_FORWARDS:-none}" >&2
+        printf "  7) Memory (MB)     %s\n" "$MEMORY" >&2
+        printf "  8) CPU Count       %s\n" "$CPUS" >&2
+        printf "  9) Disk Size       %s\n" "$DISK_SIZE" >&2
         if [[ "$KVM" == "true" ]]; then
-            echo "  A) Acceleration    KVM"
+            printf "  A) Acceleration    KVM\n" >&2
         else
-            echo "  A) Acceleration    Software"
+            printf "  A) Acceleration    Software\n" >&2
         fi
-        echo "  0) Back"
-        echo
+        printf "  0) Back\n" >&2
+        echo >&2
         ask ec "Choice: "
         case $ec in
             1) while true; do ask v "New hostname [$HOSTNAME]: "; v="${v:-$HOSTNAME}"
@@ -780,9 +774,9 @@ edit_vm_config() {
             9) while true; do ask v "Disk size [$DISK_SIZE]: "; v="${v:-$DISK_SIZE}"
                  validate_input size "$v" && { DISK_SIZE="$v"; break; }; done ;;
             A|a)
-                echo
-                echo "  1) KVM acceleration"
-                echo "  2) Software emulation"
+                echo >&2
+                printf "  1) KVM acceleration\n" >&2
+                printf "  2) Software emulation\n" >&2
                 ask v "Choose [1-2]: "
                 case $v in
                     1) if [[ -w /dev/kvm ]]; then KVM=true; else print_status WARN "/dev/kvm unavailable"; fi ;;
@@ -792,7 +786,7 @@ edit_vm_config() {
             *) print_status ERROR "Invalid"; press_enter; continue ;;
         esac
         save_vm_config
-        echo
+        echo >&2
         if ! confirm "Continue editing?"; then break; fi
     done
     return 0
@@ -853,13 +847,13 @@ show_vm_performance() {
         local pid
         pid=$(pgrep -f "qemu-system-x86_64.*$IMG_FILE" | head -1 || true)
         if [[ -n "$pid" ]]; then
-            printf "  ${C_GREY}%-14s${C_RESET} %s\n" "QEMU PID:" "$pid"
+            printf "  ${C_GREY}%-14s${C_RESET} %s\n" "QEMU PID:" "$pid" >&2
             ps -p "$pid" -o %cpu,%mem,rss --no-headers 2>/dev/null | \
-                awk '{printf "  \033[0;90m%-14s\033[0m CPU %s%%  MEM %s%%  RSS %.1f MB\n","Usage:",$1,$2,$3/1024}'
+                awk '{printf "  \033[0;90m%-14s\033[0m CPU %s%%  MEM %s%%  RSS %.1f MB\n","Usage:",$1,$2,$3/1024}' >&2
         fi
     else
         print_status INFO "VM not running"
-        printf "  ${C_GREY}Memory:%s MB  CPUs:%s  Disk:%s\n" "$MEMORY" "$CPUS" "$DISK_SIZE"
+        printf "  ${C_GREY}Memory:%s MB  CPUs:%s  Disk:%s\n" "$MEMORY" "$CPUS" "$DISK_SIZE" >&2
     fi
     hr
     press_enter
@@ -882,7 +876,7 @@ main_menu() {
             printf '  %s %-20s %-12s %-7s %-10s %s\n' \
                 "${C_GREY}#${C_RESET}" "${C_GREY}NAME${C_RESET}" \
                 "${C_GREY}STATUS${C_RESET}" "${C_GREY}PORT${C_RESET}" \
-                "${C_GREY}ACCEL${C_RESET}" "${C_GREY}OS${C_RESET}"
+                "${C_GREY}ACCEL${C_RESET}" "${C_GREY}OS${C_RESET}" >&2
             hr
             local i=1
             for vm in "${vms[@]}"; do
@@ -902,29 +896,29 @@ main_menu() {
                     accel="${C_YEL}SW${C_RESET}"
                 fi
                 printf '  %-2s %-20s %-22b %-7s %-20b %s\n' \
-                    "$i)" "$vm" "$status" "$port" "$accel" "$os"
+                    "$i)" "$vm" "$status" "$port" "$accel" "$os" >&2
                 ((i++))
             done
             hr
         else
             print_status INFO "No VMs yet — create one to begin."
-            echo
+            echo >&2
         fi
 
-        echo "  ${C_BOLD}Menu${C_RESET}"
-        echo "  ${C_CYN}1${C_RESET}) Create new VM"
+        printf "  ${C_BOLD}Menu${C_RESET}\n" >&2
+        printf "  ${C_CYN}1${C_RESET}) Create new VM\n" >&2
         if ((count > 0)); then
-            echo "  ${C_CYN}2${C_RESET}) Start VM"
-            echo "  ${C_CYN}3${C_RESET}) Stop VM"
-            echo "  ${C_CYN}4${C_RESET}) Show VM info"
-            echo "  ${C_CYN}5${C_RESET}) Edit VM configuration"
-            echo "  ${C_CYN}6${C_RESET}) Delete VM"
-            echo "  ${C_CYN}7${C_RESET}) Resize VM disk"
-            echo "  ${C_CYN}8${C_RESET}) Show VM performance"
+            printf "  ${C_CYN}2${C_RESET}) Start VM\n" >&2
+            printf "  ${C_CYN}3${C_RESET}) Stop VM\n" >&2
+            printf "  ${C_CYN}4${C_RESET}) Show VM info\n" >&2
+            printf "  ${C_CYN}5${C_RESET}) Edit VM configuration\n" >&2
+            printf "  ${C_CYN}6${C_RESET}) Delete VM\n" >&2
+            printf "  ${C_CYN}7${C_RESET}) Resize VM disk\n" >&2
+            printf "  ${C_CYN}8${C_RESET}) Show VM performance\n" >&2
         fi
-        echo "  ${C_CYN}T${C_RESET}) Toggle animations ($([[ "$ANIMATIONS" == true ]] && echo "${C_GRN}ON${C_RESET}" || echo "${C_GREY}OFF${C_RESET}"))"
-        echo "  ${C_CYN}0${C_RESET}) Exit"
-        echo
+        printf "  ${C_CYN}T${C_RESET}) Toggle animations (%s)\n" "$([[ "$ANIMATIONS" == true ]] && echo "${C_GRN}ON${C_RESET}" || echo "${C_GREY}OFF${C_RESET}")" >&2
+        printf "  ${C_CYN}0${C_RESET}) Exit\n" >&2
+        echo >&2
 
         local choice
         ask choice "Select option: "
@@ -954,7 +948,8 @@ declare -A OS_OPTIONS=(
     ["Ubuntu 24.04"]="ubuntu|noble|https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img|ubuntu24|ubuntu|ubuntu"
     ["Debian 11"]="debian|bullseye|https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2|debian11|debian|debian"
     ["Debian 12"]="debian|bookworm|https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2|debian12|debian|debian"
-    ["Fedora 40"]="fedora|40|https://download.fedoraproject.org/pub/fedora/linux/releases/40/Cloud/x86_64/images/Fedora-Cloud-Base-40-1.14.x86_64.qcow2|fedora40|fedora|fedora"
+    ["Debian 13"]="debian|trixie|https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2|debian13|debian|debian"
+    ["Fedora 41"]="fedora|41|https://download.fedoraproject.org/pub/fedora/linux/releases/41/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-41-1.4.x86_64.qcow2|fedora41|fedora|fedora"
     ["CentOS Stream 9"]="centos|stream9|https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2|centos9|centos|centos"
     ["AlmaLinux 9"]="almalinux|9|https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/AlmaLinux-9-GenericCloud-latest.x86_64.qcow2|almalinux9|alma|alma"
     ["Rocky Linux 9"]="rockylinux|9|https://download.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud.latest.x86_64.qcow2|rocky9|rocky|rocky"
